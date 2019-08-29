@@ -16,6 +16,10 @@ public class TimeServer {
     private static final Logger log = LoggerFactory.getLogger(TimeServer.class);
 
     public static void main(String[] args) {
+        System.out.println(1);
+    }
+
+    public static void main1(String[] args) {
         log.info("server is starting ....");
         try {
             ServerSocket serverSocket = new ServerSocket(1122);
@@ -50,9 +54,8 @@ public class TimeServer {
                 while (true){
                     String body =  bufferedReader.readLine();
                     if(body == null){ break;}
-                    System.out.println("the time server receive order : " + body);
+                    log.info("the time server receive order : {}" , body);
                 }
-
                 //传输给客户端
                 PrintWriter printWriter = new PrintWriter(out,true);
                 printWriter.println(new Date().getTime());

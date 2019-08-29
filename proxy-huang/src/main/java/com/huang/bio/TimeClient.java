@@ -14,25 +14,27 @@ public class TimeClient {
     private static final Logger log = LoggerFactory.getLogger(TimeServer.class);
 
     public static void main(String[] args) {
+        log.info("time client starting...");
         Socket socket = null;
         InputStream in = null;
         OutputStream out = null;
         try {
             socket = new Socket("127.0.0.1", 1122);
-            in = socket.getInputStream();// 获取输入流
             out = socket.getOutputStream();//获取输出流
             //to server
             PrintWriter printWriter = new PrintWriter(out,true);
             printWriter.println("to server: " + new Date().getTime());
 
             //from server
+            in = socket.getInputStream();// 获取输入流
             BufferedReader bufferedReader =  new BufferedReader(new InputStreamReader(in));
             while (true){
                 String body =  bufferedReader.readLine();
-                if(body == null){ break;}
                 log.info("from server message : " + body);
+                if(body == null){ break;}
             }
         } catch (Exception e) {
+            e.printStackTrace();
             //不做处理
         } finally {
             // 关闭资源
