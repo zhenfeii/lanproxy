@@ -1,16 +1,15 @@
 package org.fengfei.lanproxy.server.config.web;
 
+import io.netty.handler.codec.http.FullHttpRequest;
+import org.fengfei.lanproxy.server.config.web.exception.ContextException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-
-import org.fengfei.lanproxy.server.config.web.exception.ContextException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import io.netty.handler.codec.http.FullHttpRequest;
 
 /**
  * 接口路由管理
@@ -73,6 +72,7 @@ public class ApiRoute {
 
             URI uri = new URI(request.getUri());
             RequestHandler handler = routes.get(uri.getPath());
+            logger.info("request uri: {}",uri.getPath());
             ResponseInfo responseInfo = null;
             if (handler != null) {
                 responseInfo = handler.request(request);

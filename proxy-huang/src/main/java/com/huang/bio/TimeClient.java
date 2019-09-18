@@ -1,5 +1,6 @@
 package com.huang.bio;
 
+import org.apache.log4j.PropertyConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,6 +13,12 @@ import java.util.Date;
  */
 public class TimeClient {
     private static final Logger log = LoggerFactory.getLogger(TimeServer.class);
+
+    static {
+        //手动启动日志
+        InputStream in = TimeClient.class.getClassLoader().getResourceAsStream("log.properties");
+        PropertyConfigurator.configure(in);
+    }
 
     public static void main(String[] args) {
         log.info("time client starting...");
