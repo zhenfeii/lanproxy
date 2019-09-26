@@ -1,10 +1,9 @@
 package org.fengfei.lanproxy.server.config.web.routes;
 
-import java.nio.charset.Charset;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
+import io.netty.channel.Channel;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaders;
+import org.fengfei.lanproxy.common.Config;
 import org.fengfei.lanproxy.common.JsonUtil;
 import org.fengfei.lanproxy.server.ProxyChannelManager;
 import org.fengfei.lanproxy.server.config.ProxyConfig;
@@ -15,14 +14,18 @@ import org.fengfei.lanproxy.server.config.web.RequestMiddleware;
 import org.fengfei.lanproxy.server.config.web.ResponseInfo;
 import org.fengfei.lanproxy.server.config.web.exception.ContextException;
 import org.fengfei.lanproxy.server.metrics.MetricsCollector;
+import org.fengfei.lanproxy.server.utils.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.gson.reflect.TypeToken;
 
-import io.netty.channel.Channel;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpHeaders;
+import java.io.*;
+import java.net.URLDecoder;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.text.DecimalFormat;
+import java.util.*;
 
 /**
  * 接口实现
@@ -68,6 +71,7 @@ public class RouteConfig {
                 }
 
                 if (!request.getUri().equals("/login") && !authenticated) {
+
                     throw new ContextException(ResponseInfo.CODE_UNAUTHORIZED);
                 }
 
@@ -170,6 +174,132 @@ public class RouteConfig {
                 return ResponseInfo.build(MetricsCollector.getAndResetAllMetrics());
             }
         });
+
+        ApiRoute.addRoute("/file/list", new RequestHandler() {
+            @Override
+            public ResponseInfo request(FullHttpRequest request) {
+                List<Map<String, String>> list = new ArrayList();
+                File[] listFiles = FileUtils.getFiles(Config.getInstance().getStringValue("config.file.path"));
+                DecimalFormat fmt = new DecimalFormat("######0.0");
+
+                for(int i = 0; i < listFiles.length; ++i) {
+                    File file = listFiles[i];
+                    if(!file.isDirectory()) {
+                        Map<String, String> map = new HashMap();
+                        map.put("name", file.getName());
+                        map.put("size", fmt.format(Double.valueOf((double)file.length()).doubleValue() / 1048576.0D));
+                        list.add(map);
+                    }
+                }
+
+                return ResponseInfo.build(list);
+            }
+        });
+
+        ApiRoute.addRoute("/upload", new RequestHandler() {
+            public ResponseInfo request(FullHttpRequest request) throws IOException{
+                byte[] bytes = new byte[request.content().readableBytes()];
+                request.content().readBytes(bytes);
+                String baseFilePath = Config.getInstance().getStringValue("config.file.path");
+                String uri = request.getUri();
+                Map<String, String> params = RouteConfig.getParamsFromUri(uri);
+                String name = URLDecoder.decode((String)params.get("name"), "UTF-8");
+                RouteConfig.writeByte(bytes, baseFilePath + File.separator + name);
+                return ResponseInfo.build(Integer.valueOf(1));
+            }
+        });
+
+        ApiRoute.addRoute("/download", new RequestHandler() {
+            @Override
+            public ResponseInfo request(FullHttpRequest request) throws IOException {
+                String uri = request.getUri();
+                Map<String, String> params = RouteConfig.getParamsFromUri(uri);
+                String name = URLDecoder.decode((String)params.get("name"), "UTF-8");
+                String baseFilePath = Config.getInstance().getStringValue("config.file.path");
+
+                File file = new File(baseFilePath + File.separator + name);
+                byte[] fileContent = Files.readAllBytes(file.toPath());
+                ResponseInfo responseInfo = new ResponseInfo((Object)null);
+                responseInfo.setCode(1);
+                responseInfo.setData(fileContent);
+                responseInfo.setMessage(name);
+                return responseInfo;
+            }
+        });
+
+        ApiRoute.addRoute("/file/delete", new RequestHandler() {
+            @Override
+            public ResponseInfo request(FullHttpRequest request) throws IOException {
+                String uri = request.getUri();
+                Map<String, String> params = RouteConfig.getParamsFromUri(uri);
+                String name = URLDecoder.decode((String)params.get("name"), "UTF-8");
+                String baseFilePath = Config.getInstance().getStringValue("config.file.path");
+
+                File file = new File(baseFilePath + File.separator + name);
+                if(file.exists()){
+                    file.delete();
+                }
+                return ResponseInfo.build(ResponseInfo.CODE_OK, "success");
+            }
+        });
+
+        ApiRoute.addRoute("/file/edit", new RequestHandler() {
+            @Override
+            public ResponseInfo request(FullHttpRequest request) throws IOException {
+                String uri = request.getUri();
+                Map<String, String> params = RouteConfig.getParamsFromUri(uri);
+                String oldName = URLDecoder.decode((String)params.get("oldName"), "UTF-8");
+                String newName = URLDecoder.decode((String)params.get("newName"), "UTF-8");
+                String baseFilePath = Config.getInstance().getStringValue("config.file.path");
+
+                File oldNameFile = new File(baseFilePath + File.separator + oldName);
+                File newNameFile = new File(baseFilePath + File.separator + newName);
+                if(newNameFile.exists()){
+                    return ResponseInfo.build(99, "file exists，please change a new name");
+                }
+                boolean success = oldNameFile.renameTo(newNameFile);
+                if(!success) {
+                    return ResponseInfo.build(99, "change file name error ");
+                }
+                return ResponseInfo.build(ResponseInfo.CODE_OK, "success");
+            }
+        });
+
+    }
+
+    static void writeByte(byte[] bytes, String filename) {
+        try {
+            File file = new File(filename);
+            if(file.exists()) {
+                file.delete();
+            }
+
+            OutputStream os = new FileOutputStream(file);
+            os.write(bytes);
+            logger.info("Successfully byte inserted");
+            os.close();
+        } catch (Exception var4) {
+            System.out.println("Exception: " + var4);
+        }
+
+    }
+
+    static Map getParamsFromUri(String uri) {
+        Map<String, String> result = new LinkedHashMap();
+        String[] splits = uri.split("\\?");
+        if(splits.length < 2) {
+            return null;
+        } else {
+            String paramsS = splits[1];
+            String[] paramsArray = paramsS.split("&");
+
+            for(int i = 0; i < paramsArray.length; ++i) {
+                String[] kv = paramsArray[i].split("=");
+                result.put(kv[0], kv[1]);
+            }
+
+            return result;
+        }
     }
 
 }

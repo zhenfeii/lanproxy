@@ -170,6 +170,9 @@ public class ProxyServerContainer implements Container, ConfigChangedListener {
     }
 
     public static void main(String[] args) {
+        System.setProperty("app.home",Config.getInstance().getStringValue("app.home"));
+        logger.info("app.home: {}",Config.getInstance().getStringValue("app.home"));
+        logger.info("config.file.path: {}",Config.getInstance().getStringValue("config.file.path"));
         //ContainerHelper.start(Arrays.asList(new Container[] { new ProxyServerContainer(), new WebConfigContainer() }));
         ContainerHelper.start(Arrays.asList(new Container[] { new WebConfigContainer() }));
     }

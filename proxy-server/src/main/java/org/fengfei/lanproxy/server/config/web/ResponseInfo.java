@@ -44,7 +44,7 @@ public class ResponseInfo implements Serializable {
         this(code, message, null);
     }
 
-    private ResponseInfo(Object data) {
+    public ResponseInfo(Object data) {
         this(ResponseInfo.CODE_OK, "success", data);
     }
 

@@ -1,35 +1,24 @@
 package org.fengfei.lanproxy.server.config.web;
 
-import java.io.File;
-import java.io.RandomAccessFile;
-import java.net.URI;
-import java.nio.charset.Charset;
-
-import org.fengfei.lanproxy.common.JsonUtil;
-
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultFileRegion;
-import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.channel.*;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedNioFile;
+import org.fengfei.lanproxy.common.Config;
+import org.fengfei.lanproxy.common.JsonUtil;
+
+import java.io.File;
+import java.io.RandomAccessFile;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.Charset;
 
 public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
 
-    private static final String PAGE_FOLDER = System.getProperty("app.home", System.getProperty("user.dir"))
+    private static final String PAGE_FOLDER = System.getProperty("app.home", Config.getInstance().getStringValue("app.home"))
             + "/webpages";
 
     private static final String SERVER_VS = "LPS-0.1";
@@ -38,16 +27,19 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
     protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) throws Exception {
 
         // GET返回页面；POST请求接口
-        if (request.getMethod() != HttpMethod.POST) {
-            outputPages(ctx, request);
-            return;
+        if(request.getMethod() != HttpMethod.POST && !request.getUri().contains("download")) {
+            this.outputPages(ctx, request);
+        } else {
+            ResponseInfo responseInfo = ApiRoute.run(request);
+            if(1 != responseInfo.getCode()) {
+                this.outputContent(ctx, request, responseInfo.getCode() / 100, JsonUtil.object2json(responseInfo), "Application/json;charset=utf-8");
+            } else if(1 == responseInfo.getCode()) {
+                // 错误码规则：除100取整为http状态码
+                this.outputFile(ctx, request, responseInfo);
+            }
+
         }
 
-        ResponseInfo responseInfo = ApiRoute.run(request);
-
-        // 错误码规则：除100取整为http状态码
-        outputContent(ctx, request, responseInfo.getCode() / 100, JsonUtil.object2json(responseInfo),
-                "Application/json;charset=utf-8");
     }
 
     private void outputContent(ChannelHandlerContext ctx, FullHttpRequest request, int code, String content,
@@ -127,6 +119,26 @@ public class HttpRequestHandler extends SimpleChannelInboundHandler<FullHttpRequ
         if (!keepAlive) {
             future.addListener(ChannelFutureListener.CLOSE);
         }
+    }
+
+    /**
+     * 返回文件流
+     * @param ctx
+     * @param request
+     * @param responseInfo
+     * @throws UnsupportedEncodingException
+     */
+    private void outputFile(ChannelHandlerContext ctx, FullHttpRequest request, ResponseInfo responseInfo) throws UnsupportedEncodingException {
+        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, Unpooled.wrappedBuffer((byte[])((byte[])responseInfo.getData())));
+        response.headers().set("Content-Type", "application/octet-stream;charset=UTF-8");
+        response.headers().set("Content-Length", Integer.valueOf(response.content().readableBytes()));
+        response.headers().set("Content-Disposition", "attachment;fileName=" + URLEncoder.encode(responseInfo.getMessage(), "UTF-8"));
+        response.headers().set("Server", "LPS-0.1");
+        ChannelFuture future = ctx.writeAndFlush(response);
+        if(!HttpHeaders.isKeepAlive(request)) {
+            future.addListener(ChannelFutureListener.CLOSE);
+        }
+
     }
 
     private static void send100Continue(ChannelHandlerContext ctx) {

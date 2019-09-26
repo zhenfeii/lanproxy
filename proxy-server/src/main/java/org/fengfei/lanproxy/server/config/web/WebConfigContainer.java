@@ -43,7 +43,8 @@ public class WebConfigContainer implements Container {
                         ChannelPipeline pipeline = ch.pipeline();
 
                         pipeline.addLast(new HttpServerCodec());
-                        pipeline.addLast(new HttpObjectAggregator(64 * 1024));
+                        //HttpObjectAggregator单位为bytes 1024bytes=1kb  1024kb=1mb
+                        pipeline.addLast(new HttpObjectAggregator(100 * 1024 * 1024));//100M
                         pipeline.addLast(new ChunkedWriteHandler());
                         pipeline.addLast(new HttpRequestHandler());
                     }

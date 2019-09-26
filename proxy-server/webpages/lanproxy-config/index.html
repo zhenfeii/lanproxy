@@ -13,6 +13,7 @@
 </style>
 </head>
 <body>
+
 	<div class="layui-layout layui-layout-admin">
 		<div class="layui-header">
 			<div class="layui-logo">LanProxy Configuration</div>
@@ -23,7 +24,7 @@
 		</div>
 
 		<div class="layui-side layui-bg-black">
-			<div class="layui-side-scroll"></div>
+			<div class="layui-side-scroll">layui-side-scroll</div>
 		</div>
 
 		<div class="layui-body"></div>
@@ -114,29 +115,36 @@
 
         });
         function update_menu() {
-            api_invoke("/config/detail", {}, function(data) {
+            var html = template($("#menu-tpl").html(), {
+                list : clientList
+            });
+            $(".layui-side-scroll").html(html);
+            layui.use('element', function() {
+                var element = layui.element;
+            });
+            $(".files").html($.i18n.prop('menu.files.list'));
+            load_page("html/files/list.html");
+            $(".menu-item").click(function() {
+                window.clientIndex = $(this).attr("data-index");
+                load_page("html/files/list.html");
+            });
+
+            /*api_invoke("/config/detail", {}, function(data) {
                 if (data.code == 20000) {
                     clientList = data.data;
-                    var html = template($("#menu-tpl").html(), {
-                        list : clientList
-                    });
-                    $(".layui-side-scroll").html(html);
-                    layui.use('element', function() {
-                        var element = layui.element;
-                    });
-                    $(".client-list").html($.i18n.prop('menu.client.list'));
+                    debugger
+                    debugger
+                    //屏蔽其他菜单
+                    /!*$(".client-list").html($.i18n.prop('menu.client.list'));
                     $(".client-list-sub").html($.i18n.prop('menu.client.list'));
                     $(".client-add").html($.i18n.prop('menu.client.add'));
                     $(".client-config").html($.i18n.prop('menu.client.config'));
-                    $(".statistics").html($.i18n.prop('menu.client.statistics'));
-                    $(".menu-item").click(function() {
-                        window.clientIndex = $(this).attr("data-index");
-                        load_page("html/lan/list.html");
-                    });
+                    $(".statistics").html($.i18n.prop('menu.client.statistics'));*!/
+
                 } else {
                     alert(data.message);
                 }
-            });
+            });*/
         }
         
 
@@ -168,14 +176,14 @@
                 layui.use('layer', function() {
                     window.layer = layui.layer;
                     update_menu();
-                    load_page("html/client/list.html");
+                    load_page("html/files/list.html");
                 });
             }
         });
     </script>
 	<script id="menu-tpl" type="text/html">
     <ul class="layui-nav layui-nav-tree">
-        <li class="layui-nav-item layui-nav-itemed"><a class="client-list"
+        <!--<li class="layui-nav-item layui-nav-itemed"><a class="client-list"
             href="javascript:;"></a>
             <dl class="layui-nav-child">
                 <dd class="layui-this">
@@ -198,6 +206,9 @@
         </li>
         <li class="layui-nav-item layui-nav-itemed"><a class="statistics"
             href="javascript:load_page('html/statistics/list.html');"></a>
+        </li>-->
+        <li class="layui-nav-item layui-nav-itemed"><a class="files"
+            href="javascript:load_page('html/files/list.html');"></a>
         </li>
     </ul>
 	</script>

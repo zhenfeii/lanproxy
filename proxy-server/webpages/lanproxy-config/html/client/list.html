@@ -12,7 +12,7 @@
 			clientList = data.data;
 			var html = template($("#client-tpl").html(), data);
 			$(".main-content").html(html);
-			$(".mapping-config").click(function() {
+			/*$(".mapping-config").click(function() {
 		        window.clientIndex = $(this).attr("data-index");
 		        load_page("html/lan/list.html");
 			});
@@ -36,7 +36,7 @@
 						}
 					})
 				});
-			});
+			});*/
 		} else {
 			alert(data.message);
 		}
