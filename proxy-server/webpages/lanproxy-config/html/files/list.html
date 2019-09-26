@@ -1,0 +1,176 @@
+<div class="layui-tab layui-tab-brief">
+    <form id="uploadForm" enctype="multipart/form-data" st>
+        <input id="file" type="file" name="file"/>
+    </form>
+    <button type="button" class="layui-btn" onclick="uploadFile()">
+        <i class="layui-icon">&#xe67c;</i>上传文件
+    </button>
+    <ul class="layui-tab-title site-demo-title">
+        <li class="layui-this tab-title"></li>
+    </ul>
+    <div class="main-content"></div>
+</div>
+<script id="stat-tpl" type="text/html">
+    <table class="layui-table" lay-skin="line">
+        <thead>
+        <tr>
+            <th class="i18n-inetport">11</th>
+            <th class="i18n-inflow"></th>
+            <th class="i18n-outflow"></th>
+            <th class="i18n-channels"></th>
+        </tr>
+        </thead>
+        <tbody>
+        <%for(var i = 0; i < data.length; i++) {%>
+        <tr>
+            <td><%:=data[i].port%></td>
+            <td><%:=bytesToSize(data[i].readBytes)%></td>
+            <td><%:=bytesToSize(data[i].wroteBytes)%></td>
+            <td><%:=data[i].channels%></td>
+        </tr>
+        <%}%>
+        </tbody>
+    </table>
+    <div id="layer_file_edit">
+        <h1>huang</h1>
+    </div>
+</script>
+<script>
+    loadList()
+
+    function loadList() {
+        api_invoke("/file/list", {}, function (data) {
+            if (data.code == 20000) {
+                var html = template($("#client-tpl").html(), data);
+                $(".main-content").html(html);
+
+                //渲染后监听
+                $(".files-download").bind('click', function () {
+                    var name = $(this).attr("data-name");
+                    window.location.href = '/download?name=' + name
+                })
+
+                $(".file-edit").bind('click', function () {
+                    var oldName = $(this).attr("data-name");
+
+                    // 使用layui 输入内置层
+                    // https://www.layui.com/doc/modules/layer.html#layer.prompt
+                    layer.prompt({
+                        formType: 0,
+                        title: '重命名',
+                        value: oldName,
+                    }, function(value, index, elem){
+                        $.ajax({
+                            url: '/file/edit?oldName=' + oldName + "&newName=" + value,
+                            type: 'POST'
+                        }).done(function (res) {
+                            layer.close(index);
+                            loadList()
+                        }).fail(function (res) {
+                            alert("文件重命名失败")
+                            layer.close(index);
+                        });
+                    });
+                })
+
+                $(".file-delete").bind('click', function () {
+                    var name = $(this).attr("data-name");
+
+                    layer.open({
+                        title: '删除文件',
+                        content: '您确实删除该文件【' + name + '】吗？',
+                        yes: function(index, layero){
+                            $.ajax({
+                                url: '/file/delete?name=' + name,
+                                type: 'POST'
+                            }).done(function (res) {
+                                layer.close(index);
+                                loadList()
+                            }).fail(function (res) {
+                                alert("删除文件失败")
+                                layer.close(index);
+                            });
+                        }
+                    });
+                })
+
+            } else {
+                alert(data.message);
+            }
+        });
+    }
+
+
+
+    function uploadFile() {
+        var file = document.getElementById('file').files[0];
+        if (typeof(file) == 'undefined') {
+            alert("please choose a file")
+            return
+        }
+        var name = file.name
+//        $.ajax({
+//            url: '/upload?name=' + name,
+//            type: 'POST',
+//            data: file,
+//            cache: false,
+//            processData: false,
+//            contentType: false
+//        }).done(function (res) {
+//            alert("文件上传成功")
+//            loadList()
+//        }).fail(function (res) {
+//        });
+        var xhr = new XMLHttpRequest();  // 先new 一个XMLHttpRequest。
+//        oReq.addEventListener("progress", updateProgress);
+//        oReq.addEventListener("load" , transferComplete);
+//        oReq.addEventListener("error", transferFailed  );
+//        oReq.addEventListener("abort", transferCanceled);
+        xhr.open('POST', '/upload?name=' + name);   // 设置xhr得请求方式和url。
+
+        xhr.onloadend = function() {   // 等待ajax请求完成。
+            if (xhr.status === 200) {
+                console.log(xhr.responseText);
+                alert("文件上传成功")
+                loadList()
+            } else {
+                console.log('上传出错');
+            }
+        };
+        // 获取上传进度
+        xhr.upload.onprogress = function(event) {
+            if (event.lengthComputable) {
+                var percent = Math.floor(event.loaded / event.total * 100);
+//                document.querySelector("#progress .progress-item").style.width = percent + "%";
+                // 设置进度显示
+                console.log("文件上传进度：" + percent + "%")
+            }
+        };
+        xhr.send(file);
+    }
+
+</script>
+<script id="client-tpl" type="text/html">
+    <table class="layui-table" lay-skin="line">
+        <thead>
+        <tr>
+            <th class="th-client-name"><%:=$.i18n.prop('files.name')%></th>
+            <th class="th-client-key">File Size</th>
+            <th class="th-options">File Operation</th>
+        </tr>
+        </thead>
+        <tbody>
+        <%for(var i = 0; i < data.length; i++) {%>
+        <tr>
+            <td><%:=data[i].name%></td>
+            <td><%:=data[i].size%></td>
+            <td>
+                <a data-index="<%:=i%>" class="layui-btn layui-btn-mini file-edit" data-name="<%:=data[i].name%>"><%:=$.i18n.prop('public.edit')%></a>
+                <a data-index="<%:=i%>" class="layui-btn layui-btn-danger layui-btn-mini file-delete" data-name="<%:=data[i].name%>"><%:=$.i18n.prop('public.delete')%></a>
+                <a data-index="<%:=i%>" class="layui-btn layui-btn-normal layui-btn-mini files-download" data-name="<%:=data[i].name%>">download</a>
+            </td>
+        </tr>
+        <%}%>
+        </tbody>
+    </table>
+</script>
